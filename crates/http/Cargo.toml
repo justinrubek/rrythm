@@ -1,0 +1,21 @@
+[dependencies]
+axum = "0.7.5"
+serde = { workspace = true }
+# serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = { version = "0.4" }
+tower-http = { workspace = true, features = ["fs", "cors", "map-response-body", "map-request-body", "util"] }
+tracing = { workspace = true }
+
+[lints]
+workspace = true
+
+[package]
+name = "rrythm-http"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+homepage = { workspace = true }
+authors = { workspace = true }

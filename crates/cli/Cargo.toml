@@ -1,5 +1,7 @@
 [dependencies]
+axum = "0.7.5"
 clap = { version = "4", features = ["derive"] }
+rrythm-http = { path = "../http" }
 # serde = { workspace = true }
 # serde_json = { workspace = true }
 thiserror = { workspace = true }
