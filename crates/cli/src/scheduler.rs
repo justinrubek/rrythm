@@ -67,7 +67,7 @@ impl Scheduler {
             };
 
             tokio::select! {
-                _ = tokio::time::sleep(sleep_duration) => {
+                () = tokio::time::sleep(sleep_duration) => {
                     let now = Utc::now();
                     tracing::debug!("woke up at {}", now.format("%Y-%m-%d %H:%M:%S UTC"));
 

@@ -1,9 +1,8 @@
 use std::{str::FromStr, sync::Arc};
 
 use crate::{commands::Commands, scheduler::Scheduler, task::Scheduled};
-use chrono::Utc;
 use clap::Parser;
-use rrule::{RRuleSet, Tz};
+use rrule::RRuleSet;
 
 mod commands;
 mod error;
@@ -40,10 +39,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let scheduler = Scheduler::new();
             for r in content.registrations {
-                let task =
-                    Scheduled::new(&r.name, &r.rrule_str).expect("Failed to create dynamic task");
-                tracing::info!(?task, "initialized with task");
+                let recurrence = RRuleSet::from_str(&r.rrule_str)?;
 
+                let task = Scheduled::new(&r.name, recurrence).expect("failed to create task");
                 scheduler.add_task(task);
             }
 

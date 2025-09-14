@@ -1,32 +1,41 @@
 use crate::error::{Error, Result};
 use chrono::{DateTime, Utc};
-use rrule::{RRuleSet, Tz};
-use serde::{Deserialize, Serialize};
-use std::{fmt, str::FromStr};
+use rrule::{RRuleSet, RRuleSetIter};
+use std::fmt;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Scheduled {
     pub id: String,
     pub recurrence: RRuleSet,
     pub last_run: Option<DateTime<Utc>>,
     pub next_run: DateTime<Utc>,
+    occurrence_iter: RRuleSetIter,
 }
 
 impl Scheduled {
-    pub fn new(id: &str, rrule_str: &str) -> Result<Self> {
+    pub fn new(id: &str, recurrence: RRuleSet) -> Result<Self> {
         let now = Utc::now();
 
-        let recurrence = RRuleSet::from_str(rrule_str)
-            .map_err(|e| Error::Other(format!("Failed to parse RRULE: {}", e)))?;
+        let mut iter = recurrence.clone().into_iter();
 
-        let next_run = Self::calculate_next_occurrence(&recurrence, now).unwrap();
+        let mut next_run = None;
+        for occurrence in iter.by_ref() {
+            let occurence = occurrence.with_timezone(&Utc);
+            if occurence >= now {
+                next_run = Some(occurence);
+                break;
+            }
+        }
 
-        tracing::info!(
+        let next_run =
+            next_run.ok_or_else(|| Error::Other("No future occurrences found".to_string()))?;
+
+        tracing::debug!(
             id,
             now = %now.format("%Y-%m-%d %H:%M:%S UTC"),
             dt_start = %recurrence.get_dt_start().format("%Y-%m-%d %H:%M:%S UTC"),
             next_run = %next_run.format("%Y-%m-%d %H:%M:%S UTC"),
-            "Task initialized"
+            "task initialized"
         );
 
         Ok(Self {
@@ -34,26 +43,33 @@ impl Scheduled {
             recurrence,
             last_run: None,
             next_run,
+            occurrence_iter: iter,
         })
-    }
-
-    fn calculate_next_occurrence(
-        recurrence: &RRuleSet,
-        now: DateTime<Utc>,
-    ) -> Option<DateTime<Utc>> {
-        let now_rrule = now.with_timezone(&Tz::UTC);
-
-        let occurence = recurrence.clone().after(now_rrule).all(1);
-        let next_occurrence = occurence.dates.first();
-
-        Some(next_occurrence?.with_timezone(&Utc))
     }
 
     pub fn update_next_run(&mut self) {
         let now = Utc::now();
 
-        self.next_run = Self::calculate_next_occurrence(&self.recurrence, now)
-            .expect("Failed to calculate next run time");
+        if let Some(next_occurrence) = self.occurrence_iter.next() {
+            self.next_run = next_occurrence.with_timezone(&Utc);
+        } else {
+            // TODO: this doesn't seem right, what should we do differently?
+
+            // if the iterator is exhausted (unlikely for most recurrence rules)
+            // create a new iterator and find the next occurrence >= now
+            let mut new_iter = self.recurrence.clone().into_iter();
+            while let Some(occurrence) = new_iter.next() {
+                let occurrence_utc = occurrence.with_timezone(&Utc);
+                if occurrence_utc >= now {
+                    self.next_run = occurrence_utc;
+                    self.occurrence_iter = new_iter;
+                    return;
+                }
+            }
+
+            tracing::error!("no future occurrences found for task {}", self.id);
+            self.next_run = now + chrono::Duration::days(365);
+        }
 
         tracing::debug!(
             id = %self.id,
