@@ -1,11 +1,15 @@
 [dependencies]
 axum = "0.7.5"
+chrono = { version = "0.4.42", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
+ron = "0.8.1"
+rrule = { version = "0.14.0", features = ["clap", "serde"] }
 rrythm-http = { path = "../http" }
-# serde = { workspace = true }
+serde = { workspace = true }
 # serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 

@@ -12,4 +12,5 @@ pub(crate) struct Args {
 #[derive(clap::Subcommand, Debug)]
 pub(crate) enum Commands {
     Server(ServerCommand),
+    Debug,
 }
