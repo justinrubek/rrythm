@@ -10,20 +10,24 @@ use tokio::sync::broadcast;
 pub struct Scheduler {
     tasks: Arc<RwLock<HashMap<String, Scheduled>>>,
     shutdown_tx: broadcast::Sender<()>,
+    wakeup_tx: broadcast::Sender<()>,
 }
 
 impl Scheduler {
     pub fn new() -> Self {
         let (shutdown_tx, _) = broadcast::channel(1);
+        let (wakeup_tx, _) = broadcast::channel(1);
         Self {
             tasks: Arc::new(RwLock::new(HashMap::new())),
             shutdown_tx,
+            wakeup_tx,
         }
     }
 
     pub fn add_task(&self, task: Scheduled) {
         let mut tasks = self.tasks.write().unwrap();
         tasks.insert(task.id.clone(), task);
+        let _ = self.wakeup_tx.send(());
     }
 
     pub fn shutdown(&self) {
@@ -35,6 +39,7 @@ impl Scheduler {
         tracing::info!("scheduler starting with {} tasks", task_count);
 
         let mut shutdown_rx = self.shutdown_tx.subscribe();
+        let mut wakeup_rx = self.wakeup_tx.subscribe();
 
         loop {
             let mut soonest_time: Option<DateTime<Utc>> = None;
@@ -98,6 +103,9 @@ impl Scheduler {
                 _ = shutdown_rx.recv() => {
                     tracing::info!("scheduler shutting down");
                     return Ok(());
+                }
+                _ = wakeup_rx.recv() => {
+                    tracing::debug!("woken early due to task change");
                 }
             }
         }
