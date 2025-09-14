@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let recurrence = RRuleSet::from_str(&r.rrule_str)?;
 
                 let task = Scheduled::new(&r.name, recurrence).expect("failed to create task");
-                scheduler.add_task(task);
+                scheduler.add_task(task).await;
             }
 
             let scheduler = Arc::new(scheduler);

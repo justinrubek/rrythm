@@ -1,10 +1,7 @@
 use crate::{error::Result, task::Scheduled};
 use chrono::{DateTime, Utc};
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
-use tokio::sync::broadcast;
+use std::{collections::HashMap, sync::Arc};
+use tokio::sync::{broadcast, RwLock};
 
 #[derive(Debug)]
 pub struct Scheduler {
@@ -24,8 +21,8 @@ impl Scheduler {
         }
     }
 
-    pub fn add_task(&self, task: Scheduled) {
-        let mut tasks = self.tasks.write().unwrap();
+    pub async fn add_task(&self, task: Scheduled) {
+        let mut tasks = self.tasks.write().await;
         tasks.insert(task.id.clone(), task);
         let _ = self.wakeup_tx.send(());
     }
@@ -35,7 +32,7 @@ impl Scheduler {
     }
 
     pub async fn run(&self) -> Result<()> {
-        let task_count = self.tasks.read().unwrap().len();
+        let task_count = self.tasks.read().await.len();
         tracing::info!("scheduler starting with {} tasks", task_count);
 
         let mut shutdown_rx = self.shutdown_tx.subscribe();
@@ -45,7 +42,7 @@ impl Scheduler {
             let mut soonest_time: Option<DateTime<Utc>> = None;
 
             {
-                let tasks = self.tasks.read().unwrap();
+                let tasks = self.tasks.read().await;
                 for task in tasks.values() {
                     if soonest_time.is_none() || task.next_run < soonest_time.unwrap() {
                         soonest_time = Some(task.next_run);
@@ -76,7 +73,7 @@ impl Scheduler {
                     let now = Utc::now();
                     tracing::debug!("woke up at {}", now.format("%Y-%m-%d %H:%M:%S UTC"));
 
-                    let mut tasks = self.tasks.write().unwrap();
+                    let mut tasks = self.tasks.write().await;
                     let mut tasks_to_run = Vec::new();
 
                     for task in tasks.values() {
