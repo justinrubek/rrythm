@@ -1,19 +1,31 @@
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    scheduler::{self, Action},
+};
 use chrono::{DateTime, Utc};
 use rrule::{RRuleSet, RRuleSetIter};
-use std::fmt;
+use std::{fmt, sync::Arc};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Scheduled {
     pub id: String,
     pub recurrence: RRuleSet,
     pub last_run: Option<DateTime<Utc>>,
     pub next_run: DateTime<Utc>,
+    pub action: Arc<dyn Action>,
     occurrence_iter: RRuleSetIter,
 }
 
+#[async_trait::async_trait]
+impl scheduler::Action for Scheduled {
+    async fn execute(&self, context: &scheduler::ExecutionContext) -> Result<()> {
+        self.action.execute(context).await?;
+        Ok(())
+    }
+}
+
 impl Scheduled {
-    pub fn new(id: &str, recurrence: RRuleSet) -> Result<Self> {
+    pub fn new(id: &str, recurrence: RRuleSet, action: Arc<dyn Action>) -> Result<Self> {
         let now = Utc::now();
 
         let mut iter = recurrence.clone().into_iter();
@@ -43,6 +55,7 @@ impl Scheduled {
             recurrence,
             last_run: None,
             next_run,
+            action,
             occurrence_iter: iter,
         })
     }

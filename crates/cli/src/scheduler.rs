@@ -3,7 +3,16 @@ use chrono::{DateTime, Utc};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{broadcast, RwLock};
 
-#[derive(Debug)]
+#[async_trait::async_trait]
+pub trait Action: Send + Sync {
+    async fn execute(&self, context: &ExecutionContext) -> Result<()>;
+}
+
+pub struct ExecutionContext {
+    pub task_id: String,
+    pub execution_time: chrono::DateTime<chrono::Utc>,
+}
+
 pub struct Scheduler {
     tasks: Arc<RwLock<HashMap<String, Scheduled>>>,
     shutdown_tx: broadcast::Sender<()>,
@@ -84,8 +93,8 @@ impl Scheduler {
 
                     for task_id in tasks_to_run {
                         if let Some(task) = tasks.get_mut(&task_id) {
-                            tracing::info!(task_id, "executing task");
-                            task.last_run = Some(Utc::now());
+                            task.execute(&ExecutionContext { task_id: task_id.clone(), execution_time: now }).await?;
+                            task.last_run = Some(now);
 
                             task.update_next_run();
 

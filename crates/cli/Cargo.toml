@@ -1,8 +1,10 @@
 [dependencies]
+async-trait = "0.1.89"
 axum = "0.7.5"
 chrono = { version = "0.4.42", features = ["serde"] }
 clap = { version = "4", features = ["derive"] }
 ron = "0.8.1"
+reqwest = { workspace = true }
 rrule = { version = "0.14.0", features = ["clap", "serde"] }
 rrythm-http = { path = "../http" }
 serde = { workspace = true }
